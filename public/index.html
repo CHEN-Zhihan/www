@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+        <script type="text/javascript" src="javascripts/myscripts.js"></script>
+        <link rel="stylesheet" type="test/css" href="stylesheets/style.css">
+    </head>
+    <body>
+        <h1>ChatterBox</h1>
+        <div ng-app="ChatterBox" ng-controller="signIn">
+            username: <input type="text" ng-model="username"><br>
+            password: <input type="password" ng-model="password"><br>
+            <button id="signInButton", ng-click="signIn();">Sign in</button>
+        </div>
+    </body>
+</html>
