@@ -1,118 +1,62 @@
+
 var express = require('express');
 var mongo = require("mongodb");
 
 var router = express.Router();
 
 
-function findAllFriends(collection, id) {
-    var error = false;
-    var allFriends = {};
-    collection.findOne({"_id": id}, {"fields": {"name": 1, "icon": 1, "friends": 1}}, (err, docs) => {
-        if (err !== null) {
-            error = true;
-            return;
-        }
-        user.name = docs.name;
-        user.icon = docs.icon;
-        user.friends = null;
-        var nameToLastMsgId = user.friends.reduce((obj, x) => {
-            obj[x.name] = x.lastMsgId;
-        }, {});
-        collection.find({
-            "$elemMatch": {
-                name: {
-                    "$in": Object.keys(nameToLastMsgId)
-                }
+function getAllFriends(collection, nameToLastMsgId) {
+    console.log(nameToLastMsgId);
+    return collection.find({
+            name: {
+                "$in": Object.keys(nameToLastMsgId)
             }
-        }, {fields: {name: 1, _id: 1}}, (err, docs) => {
-            if (err !== null) {
-                error = true;
-                return;
+        }, {fields: {name: 1, _id: 1}}
+    ).then((friendsNameId) => {
+        return friendsNameId.reduce((result, x) => (
+            result[x._id] = {
+                "name": x.name,
+                "lastMsgId": nameToLastMsgId[x.name]
             }
-            allFriends = docs.reduce((obj, x) => {
-                obj[x._id] = {
-                    "name": x.name,
-                    "lastMsgId": nameToLastMsgId[x.name]
-                }
-            });
-        });
+        , result), {});
     });
-    return {
-        "error": error,
-        "allFriends": allFriends
-    };
 }
 
-
-
 router.post("/login", (req, res) => {
-    var error = false;
     var collection = req.db.get("userList");
-    var user = {}
     console.log(req.body);
-    collection.findOne(req.body, {"_id": 1}, (err, docs) => {
-        if (err !== null || docs === null) {
-            console.log("Cannot find anything");
-            error = true;
-            return;
+    var getUser = collection.findOneAndUpdate(req.body, 
+                                              {"$set": {"status": "online"}}, 
+                                             {"fields": {
+                                                 "name": 1, "icon": 1, "friends": 1
+                                             }})
+    .then((doc) => {
+        if (doc === null) {
+            throw err;
         }
-        console.log(docs);
-        req.session.userId = docs._id;
-        collection.update({"_id": docs["_id"]}, {"$set": {"status": "online"}});
-        var friends = findAllFriends(collection, docs._id);
-        if (friends.error) {
-            error = true;
-            return;
-        }
-        user["name"] = docs.name;
-        user["icons"] = docs.icons;
-        user["friends"] = friends.allFriends;
+        req.session.userId = doc._id;
+        var user = {};
+        user.id = doc._id;
+        user.icon = doc.icon;
+        user.name = doc.name;
+        user.friends = doc.friends.reduce((result, friend) => (result[friend.name] = friend.lastMsgId, result), {});
+        return user;
     });
-    res.send({
-        "error": error,
-        "user": user
-    });
-});
-
-
-router.get("/load", (req, res) => {
-    if (!req.session.userId) {
-        res.send("");
-        return;
-    }
-    var user = null;
-    var collection = req.db.get("userList");
-    collection.find({_id: new mongo.ObjectId(req.session.userId)}, 
-                    {fields: {name: 1, icon: 1, friends: 1}}, 
-                    (err, docs) => {
-        if (err !== null) {
-            res.send({msg: err});
-            return;
-        }
-        user = docs;
-    });
-    if (user === null) {
-        return;
-    }
-    var nameToFriends = user.friends.reduce((obj, x) => {
-        obj[x.name].lastMsgId = x.lastMsgId;
-    }, {});
-    collection.find({
-        "$elemMatch": {
-            name: {
-                "$in": Object.keys(nameToFriends)
-            }
-        }
-    }, {fields: {name: 1, _id: 1}}, (err, docs) => {
-        if (err !== null) {
-            res.send()
-        }
-        docs.forEach((x) => {
-            nameToFriends[x.name]._id = x._id.valueof();
+    var getFriends = getUser.then((user) => getAllFriends(collection, user.friends));
+    Promise.all([getUser, getFriends]).then((userFriends) => {
+        user = userFriends[0];
+        user.friends = userFriends[1];
+        res.send({
+            "user": user,
+            "error": false
+        });
+    }).catch((err) => {
+        console.log(err);
+        res.send({
+            "user": {},
+            "error": true
         });
     });
-    res.send(user);
-    console.log(user);
 });
 
 module.exports = router;

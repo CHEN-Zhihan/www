@@ -1,6 +1,7 @@
+
 var app = angular.module("ChatterBox", []);
-app.controller("signIn", function($scope, $http) {
-    $scope.signIn = () => {
+app.controller("logIn", function($scope, $http) {
+    $scope.logIn = () => {
         if (typeof $scope.username === "undefined") {
             alert("Please enter a valid username");
             return;
