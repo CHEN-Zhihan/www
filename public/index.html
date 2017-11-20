@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html ng-app="ChatterBox">
     <head>
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
         <script type="text/javascript" src="javascripts/myscripts.js"></script>
@@ -7,10 +7,36 @@
     </head>
     <body>
         <h1>ChatterBox</h1>
-        <div ng-app="ChatterBox" ng-controller="logIn">
-            username: <input type="text" ng-model="username"><br>
-            password: <input type="password" ng-model="password"><br>
-            <button id="logInButton", ng-click="logIn();">Sign in</button>
+        <div ng-controller="viewControl" ng-switch on="userPage.page">
+            <div ng-controller="logIn" ng-switch-when="login">
+                username: <input type="text" ng-model="username"><br>
+                password: <input type="password" ng-model="password"><br>
+                <button id="logInButton", ng-click="logIn();">Log in</button>
+            </div>
+            <div ng-controller="main" ng-switch-when="main" ng-switch on="userPage.partialPage">
+                <div ng-click="getUserInfo();">
+                    <div>{{userPage.user.name}}</div>
+                    <img ng-src="{{userPage.user.icon}}">
+                </div>
+                <div ng-repeat="(id, friend) in userPage.user.friends" id="{{id}}">
+                    {{friend.name}}({{friend.msgNotReceived}})
+                </div>
+                <button id="logOutButton" ng-click="logOut();">Log out</button>
+                <div ng-swith-when="empty">
+                    
+                </div>
+                <div ng-switch-when="conversation">
+
+                </div>
+                <div ng-controller="info" ng-switch-when="info">
+                    <!-- <div>{{userPage.user.name}}</div>
+                    <img ng-src="{{userPage.user.icon}}"> -->
+                    Mobile number: <input type="text" ng-model="data.mobileNumber"><br>
+                    Home number: <input type="text" ng-model="data.homeNumber"><br>
+                    Address: <input type="text" ng-model="data.address"><br>
+                    <button id="save" ng-click="save();">Save</button>
+                </div>
+            </div>
         </div>
     </body>
 </html>
