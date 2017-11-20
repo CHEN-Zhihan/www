@@ -137,7 +137,7 @@ app.controller("info", ($scope, $http, userPage) => {
     }
 })
 
-app.controller("chat", ($scope, $http, chat) => {
+function getConversation($scope, $http, chat) {
     $scope.chat = chat;
     $http.get("/getconversation/" + chat.receiverId, {})
     .then((res) => {
@@ -147,30 +147,41 @@ app.controller("chat", ($scope, $http, chat) => {
         }
         console.log("get conversation successfully");
         console.log(res.data);
-        $scope.conversation = res.data;
+        $scope.conversation = res.data.conversation;
     }).catch((err) => {
         console.log("get conversation local error: ");
         console.log(err);
     });
+}
 
+app.controller("chat", ($scope, $http, chat) => {
+    getConversation($scope, $http, chat);
+    $scope.$watch("chat.receiverId", () => {
+        getConversation($scope, $http, chat);
+    });
     $scope.send = () => {
-        var dateTime = getDateTime();
-        var data = {
-            "message": $scope.message,
-        };
-        Object.assign(data, dateTime);
-        $http.post("/postmessage/" + chat.receiverId, data)
-        .then((doc) => {
-            if (doc.error) {
-                alert("send message server error");
-                return;
-            }
-            console.log("sent message successfully: ");
-            console.log(doc);
-            $scope.conversation.push(doc);
-        }).catch((err) => {
-            console.log("send message local error");
-            console.log(err);
-        });
+        if (typeof $scope.message !== "undefined" && $scope.message !== null) {
+            var dateTime = getDateTime();
+            var data = {
+                "message": $scope.message,
+            };
+            Object.assign(data, dateTime);
+            $http.post("/postmessage/" + chat.receiverId, data)
+            .then((doc) => {
+                if (doc.error) {
+                    alert("send message server error");
+                    return;
+                }
+                console.log("sent message successfully: ");
+                console.log(doc);
+                data._id = doc.data._id;
+                data.isSender = true;
+                $scope.conversation.push(data);
+                $scope.message = null;
+            }).catch((err) => {
+                console.log("send message local error");
+                console.log(err);
+            });
+        }
     };
 })

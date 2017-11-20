@@ -165,7 +165,7 @@ router.get("/getuserinfo", (req, res) => {
                 "_id": 0
             }
         };
-        collection.findOne({query}, fields)
+        collection.findOne(query, fields)
         .then((doc) => {
             console.log("getuserinfo successfully");
             console.log(doc);
@@ -211,31 +211,31 @@ router.get("/getconversation/:friendid", (req, res) => {
     if (req.session.userId && req.params.friendid) {
         var friend = getFriend(req.db, req.params.friendid);
         var query = {"$or": [
-            {"senderId": new mongo.ObjectID(req.session.userId),
-            "receiverId": new mongo.ObjectID(req.params.friendid),
+            {"senderId": req.session.userId,
+            "receiverId": req.params.friendid,
         }, {
-            "receiverId": new mongo.ObjectID(req.params.friendid),
-            "senderId": new mongo.ObjectID(req.session.userId)
+            "receiverId": req.params.friendid,
+            "senderId": req.session.userId
         }]};
         var collection = req.db.get("messageList");
         var conversation = collection.find(query)
         .then((docs) => {
             console.log("find conversation successfully");
             docs.forEach((x) => {
-                x[isSender] = x.senderId === req.session.userId;
-                delete x[senderId];
-                delete x[receiverId];
+                x.isSender = x.senderId === req.session.userId;
+                delete x.senderId
+                delete x.receiverId;
             });
             console.log(docs);
             return docs;
-        });
+        }).catch((err) => {
+            console.log(err);
+        })
         Promise.all([friend, conversation]).then((friendConversation) => {
             var friend = friendConversation[0];
             var conversation = friendConversation[1];
             console.log("get friend conversation succesfully");
             console.log(friendConversation);
-            console.log(friend);
-            console.log(conversation);
             res.send({
                 "friend": friend,
                 "conversation": conversation,

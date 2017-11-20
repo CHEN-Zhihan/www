@@ -25,12 +25,12 @@
                 <div ng-swith-when="empty">
                     
                 </div>
-                <div ng-controller="chat" ng-switch-when="chat">
+                <div ng-controller="chat" ng-switch-when="chat" ng-model="conversation">
                     <div ng-repeat="m in conversation" id="{{m._id}}">
                         {{m.message}}
                     </div>
                     <form ng-submit="send();">
-                        <input type="text" ng-model="message">                            
+                        <input type="text" ng-model="message">
                     </form>
                 </div>
                 <div ng-controller="info" ng-switch-when="info">
