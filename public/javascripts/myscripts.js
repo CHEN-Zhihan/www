@@ -10,10 +10,35 @@ app.factory("userPage", () => {
     };
 })
 
+app.factory("chat", () => {
+    return {
+        "receiverId": ""
+    };
+})
+
 function loadMain($scope, res) {
     $scope.userPage.user = res.data.user;
     $scope.userPage.page = "main";
     $scope.userPage.partialPage = "empty";
+}
+
+function getDateTime() {
+    var now = new Date();
+    var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
+    var day = days[now.getDay()];
+    var month = months[ now.getMonth() ];
+    var date = now.getDate();
+    var year = now.getFullYear();
+    var hour = now.getHours();
+    var minute = now.getMinutes();
+    var second = now.getSeconds();
+    var date = [day, month, date, year].join(' ');
+    var time = [hour, minute, second].join(':');
+    return {
+        "date": date,
+        "time": time
+    };
 }
 
 app.controller("viewControl", ($scope, $http, userPage) => {
@@ -54,8 +79,9 @@ app.controller("logIn", function($scope, $http, userPage) {
     }
 });
 
-app.controller("main", ($scope, $http, userPage) => {
+app.controller("main", ($scope, $http, userPage, chat) => {
     $scope.userPage = userPage;
+    $scope.c = chat;
     $scope.logOut = () => {
         $http.get("/logout", {})
         .then((res) => {
@@ -70,22 +96,28 @@ app.controller("main", ($scope, $http, userPage) => {
         $scope.userPage.partialPage = "info";
     }
     $scope.userPage.partialPage = "empty";
+
+    $scope.chat = (userID) => {
+        $scope.c.receiverId = userID;
+        $scope.userPage.partialPage = "chat";
+    }
+
 });
 
 app.controller("info", ($scope, $http, userPage) => {
     $scope.userPage = userPage;
     $http.get("/getuserinfo", {})
     .then((res) => {
-        console.log("getuserinfo returns");
         if (res.error) {
-            console.log("getuserinfo remote error");
+            alert("getuserinfo remote error");
             return;
         }
+        console.log("getuserinfo received data: ");
         console.log(res.data);
         $scope.data = res.data;
         delete $scope.data["error"];
     }).catch((err) => {
-        console.log("getuserinfo local error");
+        console.log("getuserinfo local error: ");
         console.log(err);
     });
 
@@ -99,8 +131,46 @@ app.controller("info", ($scope, $http, userPage) => {
             console.log("update userinfo successfully");
             $scope.userPage.partialPage = "empty";
         }).catch((err) => {
-            console.log("saveuserinfo local error");
+            console.log("saveuserinfo local error: ");
             console.log(err);
         })
     }
+})
+
+app.controller("chat", ($scope, $http, chat) => {
+    $scope.chat = chat;
+    $http.get("/getconversation/" + chat.receiverId, {})
+    .then((res) => {
+        if (res.error) {
+            alert("Error get conversation");
+            return;
+        }
+        console.log("get conversation successfully");
+        console.log(res.data);
+        $scope.conversation = res.data;
+    }).catch((err) => {
+        console.log("get conversation local error: ");
+        console.log(err);
+    });
+
+    $scope.send = () => {
+        var dateTime = getDateTime();
+        var data = {
+            "message": $scope.message,
+        };
+        Object.assign(data, dateTime);
+        $http.post("/postmessage/" + chat.receiverId, data)
+        .then((doc) => {
+            if (doc.error) {
+                alert("send message server error");
+                return;
+            }
+            console.log("sent message successfully: ");
+            console.log(doc);
+            $scope.conversation.push(doc);
+        }).catch((err) => {
+            console.log("send message local error");
+            console.log(err);
+        });
+    };
 })

@@ -22,6 +22,27 @@ function getAllFriends(collection, nameToLastMsgId) {
     });
 }
 
+function getFriend(db, id) {
+    var collection = db.get("userList");
+    var query = {
+        "_id": new mongo.ObjectID(id)
+    }
+    var fields = {
+        "fields": {
+            "name": 1,
+            "icon": 1,
+            "status": 1,
+            "_id": 0
+        }
+    };
+    return collection.findOne(query, fields)
+    .then((doc) => {
+        console.log("friend found successfully");
+        console.log(doc);
+        return doc;
+    });
+}
+
 function getUser(promise) {
     return promise.then((doc) => {
         if (doc === null) {
@@ -178,6 +199,88 @@ router.put("/saveuserinfo", (req, res) => {
             console.log(err);
             res.send({"error": true});
         })
+    } else {
+        console.log("User not logged in");
+        res.send({"error": true});
+    }
+})
+
+router.get("/getconversation/:friendid", (req, res) => {
+    console.log("receive getconversation request");
+    console.log(req.body);
+    if (req.session.userId && req.params.friendid) {
+        var friend = getFriend(req.db, req.params.friendid);
+        var query = {"$or": [
+            {"senderId": new mongo.ObjectID(req.session.userId),
+            "receiverId": new mongo.ObjectID(req.params.friendid),
+        }, {
+            "receiverId": new mongo.ObjectID(req.params.friendid),
+            "senderId": new mongo.ObjectID(req.session.userId)
+        }]};
+        var collection = req.db.get("messageList");
+        var conversation = collection.find(query)
+        .then((docs) => {
+            console.log("find conversation successfully");
+            docs.forEach((x) => {
+                x[isSender] = x.senderId === req.session.userId;
+                delete x[senderId];
+                delete x[receiverId];
+            });
+            console.log(docs);
+            return docs;
+        });
+        Promise.all([friend, conversation]).then((friendConversation) => {
+            var friend = friendConversation[0];
+            var conversation = friendConversation[1];
+            console.log("get friend conversation succesfully");
+            console.log(friendConversation);
+            console.log(friend);
+            console.log(conversation);
+            res.send({
+                "friend": friend,
+                "conversation": conversation,
+                "error": false
+            });
+        }).catch((err) => {
+            console.log(err);
+            res.send({
+                "error": true
+            });
+        });
+    } else {
+        console.log("User not logged in");
+        res.send({"error": true});
+    }
+});
+
+router.post("/postmessage/:friendid", (req, res) => {
+    console.log("receive postmessage request");
+    console.log(req.body);
+    console.log(req.params.friendid);
+    if (req.session.userId && req.params.friendid) {
+        var data = {
+            "senderId": req.session.userId,
+            "receiverId": req.params.friendid,
+        };
+        Object.assign(data, req.body);
+        var collection = req.db.get("messageList");
+        collection.insert(data)
+        .then((doc) => {
+            console.log("insert successfully");
+            console.log(doc);
+            res.send({
+                "error": false,
+                "id": doc._id
+            });
+        }).catch((err) => {
+            console.log(err);
+            res.send({
+                "error": true
+            });
+        })
+    } else {
+        console.log("User not logged in");
+        res.send({"error": true});
     }
 })
 
