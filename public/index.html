@@ -7,39 +7,39 @@
     </head>
     <body>
         <h1>ChatterBox</h1>
-        <div ng-controller="viewControl" ng-switch on="userPage.page">
-            <div ng-controller="logIn" ng-switch-when="login">
-                username: <input type="text" ng-model="username"><br>
-                password: <input type="password" ng-model="password"><br>
-                <button id="logInButton", ng-click="logIn();">Log in</button>
+        <div ng-controller="ChatterBox" ng-switch on="app.page" ng-init="init()">
+            <div ng-switch-when="logIn">
+                username: <input type="text" ng-model="user.const.name"><br>
+                password: <input type="password" ng-model="user.const.password"><br>
+                <button ng-click="logIn();">Log in</button>
             </div>
-            <div ng-controller="main" ng-switch-when="main" ng-switch on="userPage.partialPage">
+            <div ng-switch-when="main" ng-switch on="app.partialPage">
                 <div ng-click="getUserInfo();">
-                    <div>{{userPage.user.name}}</div>
-                    <img ng-src="{{userPage.user.icon}}">
+                    <div>{{user.const.name}}</div>
+                    <img ng-src="{{user.const.icon}}">
                 </div>
-                <div ng-repeat="(id, friend) in userPage.user.friends" id="{{id}}" ng-click="chat(id);">
-                    {{friend.name}}({{friend.msgNotReceived}})
+                <div ng-repeat="friend in user.friends" id="{{friend._id}}" ng-click="startChat(friend._id);">
+                    {{friend.name}}({{friend.unreadNo}})
                 </div>
-                <button id="logOutButton" ng-click="logOut();">Log out</button>
+                <button ng-click="logOut();">Log out</button>
                 <div ng-swith-when="empty">
                     
                 </div>
-                <div ng-controller="chat" ng-switch-when="chat" ng-model="conversation">
-                    <div ng-repeat="m in conversation" id="{{m._id}}">
+                <div ng-switch-when="chat">
+                    <div ng-repeat="m in chat.conversation track by $index" ng-dblclick="deleteMessage($index);">
                         {{m.message}}
                     </div>
                     <form ng-submit="send();">
-                        <input type="text" ng-model="message">
+                        <input type="text" ng-model="chat.message">
                     </form>
                 </div>
-                <div ng-controller="info" ng-switch-when="info">
+                <div ng-switch-when="info">
                     <!-- <div>{{userPage.user.name}}</div>
                     <img ng-src="{{userPage.user.icon}}"> -->
-                    Mobile number: <input type="text" ng-model="data.mobileNumber"><br>
-                    Home number: <input type="text" ng-model="data.homeNumber"><br>
-                    Address: <input type="text" ng-model="data.address"><br>
-                    <button id="save" ng-click="save();">Save</button>
+                    Mobile number: <input type="text" ng-model="tmp.mobileNumber"><br>
+                    Home number: <input type="text" ng-model="tmp.homeNumber"><br>
+                    Address: <input type="text" ng-model="tmp.address"><br>
+                    <button ng-click="save();">Save</button>
                 </div>
             </div>
         </div>

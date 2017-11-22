@@ -1,187 +1,239 @@
 
 var app = angular.module("ChatterBox", []); 
+DEBUG = true;
 
-
-app.factory("userPage", () => {
-    return {
-        "user": "",
-        "page": "",
-        "partialPage": ""
-    };
-})
-
-app.factory("chat", () => {
-    return {
-        "receiverId": ""
-    };
-})
-
-function loadMain($scope, res) {
-    $scope.userPage.user = res.data.user;
-    $scope.userPage.page = "main";
-    $scope.userPage.partialPage = "empty";
-}
 
 function getDateTime() {
     var now = new Date();
-    var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
-    var day = days[now.getDay()];
-    var month = months[ now.getMonth() ];
-    var date = now.getDate();
-    var year = now.getFullYear();
-    var hour = now.getHours();
-    var minute = now.getMinutes();
-    var second = now.getSeconds();
-    var date = [day, month, date, year].join(' ');
-    var time = [hour, minute, second].join(':');
+    var date = now.toDateString();
+    var time = now.toTimeString().split(' ')[0];
     return {
         "date": date,
         "time": time
     };
 }
 
-app.controller("viewControl", ($scope, $http, userPage) => {
-    $scope.userPage = userPage;
-    console.log("send GET to /load");
-    $http.get("/load", {})
-    .then((res) => {
-        if (res.data.error) {
-            console.log("load error");
-            $scope.userPage.page = "login";
-        } else {
-            console.log("load success");
-            console.log(res.data);
-            loadMain($scope, res);
-        }
-    });
-});
-
-app.controller("logIn", function($scope, $http, userPage) {
-    $scope.logIn = () => {
-        if (typeof $scope.username === "undefined") {
-            alert("Please enter a valid username");
-            return;
-        }
-        if (typeof $scope.password === "undefined") {
-            alert("Please enter a valid password");
-            return;
-        }
-        console.log("send POST to /login");
-        $http.post("/login", {
-            "name": $scope.username,
-            "password": $scope.password
-        }).then((res) => {
-            console.log("login returns");
-            console.log(res.data);
-            loadMain($scope, res);
-        })
+function template(msg, res, callback) {
+    if (res.data.error) {
+        alert(msg + " Server Error");
+        return;
     }
-});
-
-app.controller("main", ($scope, $http, userPage, chat) => {
-    $scope.userPage = userPage;
-    $scope.c = chat;
-    $scope.logOut = () => {
-        $http.get("/logout", {})
-        .then((res) => {
-            console.log("logout returns");
-            $scope.userPage.page = "login";
-        }).catch((err) => {
-            console.log("logout failed");
-            console.log(err);
-        })
-    };
-    $scope.getUserInfo = () => {
-        $scope.userPage.partialPage = "info";
-    }
-    $scope.userPage.partialPage = "empty";
-
-    $scope.chat = (userID) => {
-        $scope.c.receiverId = userID;
-        $scope.userPage.partialPage = "chat";
-    }
-
-});
-
-app.controller("info", ($scope, $http, userPage) => {
-    $scope.userPage = userPage;
-    $http.get("/getuserinfo", {})
-    .then((res) => {
-        if (res.error) {
-            alert("getuserinfo remote error");
-            return;
-        }
-        console.log("getuserinfo received data: ");
-        console.log(res.data);
-        $scope.data = res.data;
-        delete $scope.data["error"];
-    }).catch((err) => {
-        console.log("getuserinfo local error: ");
-        console.log(err);
-    });
-
-    $scope.save = () => {
-        console.log($scope.data);
-        $http.put("/saveuserinfo", $scope.data).then((res) => {
-            if (res.error) {
-                alert("Error update userinfo");
-                return;
-            }
-            console.log("update userinfo successfully");
-            $scope.userPage.partialPage = "empty";
-        }).catch((err) => {
-            console.log("saveuserinfo local error: ");
-            console.log(err);
-        })
-    }
-})
-
-function getConversation($scope, $http, chat) {
-    $scope.chat = chat;
-    $http.get("/getconversation/" + chat.receiverId, {})
-    .then((res) => {
-        if (res.error) {
-            alert("Error get conversation");
-            return;
-        }
-        console.log("get conversation successfully");
-        console.log(res.data);
-        $scope.conversation = res.data.conversation;
-    }).catch((err) => {
-        console.log("get conversation local error: ");
-        console.log(err);
-    });
+    callback();
 }
 
-app.controller("chat", ($scope, $http, chat) => {
-    getConversation($scope, $http, chat);
-    $scope.$watch("chat.receiverId", () => {
-        getConversation($scope, $http, chat);
-    });
-    $scope.send = () => {
-        if (typeof $scope.message !== "undefined" && $scope.message !== null) {
-            var dateTime = getDateTime();
-            var data = {
-                "message": $scope.message,
-            };
-            Object.assign(data, dateTime);
-            $http.post("/postmessage/" + chat.receiverId, data)
-            .then((doc) => {
-                if (doc.error) {
-                    alert("send message server error");
-                    return;
+function catchError(msg, err) {
+    alert(msg + " Client Error");
+    console.log(err);
+}
+
+function load($scope, $http) {
+    var errorMessage = "Load";
+    $http.get("/load", {})
+    .then((res) =>  {
+            if (res.data.error) {
+                $scope.app.page = "logIn";
+            } else {
+                if (DEBUG) {
+                    console.log(res.data);
                 }
-                console.log("sent message successfully: ");
-                console.log(doc);
-                data._id = doc.data._id;
-                data.isSender = true;
-                $scope.conversation.push(data);
-                $scope.message = null;
-            }).catch((err) => {
-                console.log("send message local error");
-                console.log(err);
-            });
+                $scope.app.page = "main";
+                $scope.user.friends = res.data.friends;
+                $scope.user.const.icon = res.data.icon;
+                $scope.user.const.name = res.data.name;
+            }
+    }).catch((err) => catchError(errorMessage, err));
+}
+
+
+function logIn($scope, $http) {
+    if (typeof $scope.user.const.name === "undefined") {
+        alert("Please enter a valid username");
+        return;
+    }
+    if (typeof $scope.user.const.password === "undefined") {
+        alert("Please enter a valid password");
+        return;
+    }
+    var errorMessage = "Log in";
+    $http.post("/login", {
+        "name": $scope.user.const.name,
+        "password": $scope.user.const.password
+    }).then((res) => template(errorMessage, res, () => {
+            if (res.data.incorrect) {
+                alert("Incorrect password or username");
+                return;
+            }
+            $scope.app.page = "main";
+            $scope.user.const.icon = res.data.icon;
+            $scope.user.friends = res.data.friends;
+        })
+    ).catch((err) => catchError(errorMessage, err));
+}
+
+
+function logOut($scope, $http) {
+    var errorMessage = "Log out"
+    $http.get("/logout", {})
+    .then((res) => template(errorMessage, res, () => {
+            $scope.app.page = "logIn";
+        })
+    ).catch((err) => catchError(errorMessage, err));
+}
+
+function getUserInfo($scope, $http) {
+    var errorMessage = "Get User Information";
+    if ($scope.user.mutable !== {}) {
+        $http.get("/getuserinfo", {})
+        .then((res) => template(errorMessage, res, () => {
+                if (DEBUG) {
+                    console.log("getuserinfo received data: ");
+                    console.log(res.data);
+                }
+                $scope.user.mutable = res.data;
+                Object.assign($scope.tmp, $scope.user.mutable);
+                console.log($scope.tmp);
+            })
+        ).catch((err) => catchError(errorMessage, err));
+    }
+}
+
+function saveUserInfo($scope, $http) {
+    var data = Object.keys($scope.tmp).reduce((result, x) => {
+        if ($scope.tmp[x] !== $scope.user.mutable[x]) {
+            result[x] = $scope.tmp[x];
+        };
+        return result;
+    }, {});
+    console.log(Object.keys(data).length);
+    if (Object.keys(data).length === 0) {
+        return;
+    }
+    var errorMessage = "Save User Information";
+    $http.put("/saveuserinfo", data).then((res) => 
+        template(errorMessage, res, () => {
+            delete data.error;
+            Object.assign($scope.user.mutable, data);
+            $scope.app.partialPage = "empty";
+        })
+    ).catch((err) => catchError(errorMessage));
+}
+
+function getConversation($scope, $http) {
+    var errorMessage = "Get Conversation";
+    $http.get("/getconversation/" + $scope.chat.receiverId)
+    .then((res) => template(errorMessage, res, () => {
+        if (DEBUG) {
+            console.log("get conversation successfully");
+            console.log(res.data);
         }
+        $scope.chat.conversation = res.data.conversation;
+    })
+    ).catch((err) => catchError(errorMessage, err));
+}
+
+function sendMessage($scope, $http) {
+    if (typeof $scope.chat.message !== "undefined" && $scope.chat.message !== null) {
+        var data = {
+            "message": $scope.chat.message,
+        };
+        Object.assign(data, getDateTime());
+        var errorMessage = "Send message";
+        $http.post("/postmessage/" + $scope.chat.receiverId, data)
+        .then((res) => template(errorMessage, res, () => {
+            if (DEBUG) {
+                console.log("sent message successfully: ");
+                console.log(res.data);
+            }
+            data._id = res.data._id;
+            data.isSender = true;
+            $scope.chat.conversation.push(data);
+            $scope.chat.message = null;
+        })
+        ).catch((err) => catchError(errorMessage, err));
     };
-})
+}
+
+function deleteMessage(index, $scope, $http) {
+    if (!$scope.chat.conversation[index].isSender || !confirm("Delete the message?")) {
+        return;
+    }
+    var errorMessage = "Delete message";
+    $http.delete("/deletemessage/" + $scope.chat.conversation[index]._id, {})
+    .then((res) => template(errorMessage, res, () => {
+        $scope.chat.conversation.splice(index, 1);        
+    })
+    ).catch((err) => catchError(errorMessage, err));
+}
+
+function getNewMessage($scope, $http) {
+    var errorMessage = "Get new message";
+    $http.get("/getnewmessages/" + $scope.chat.receiverId)
+    .then((res) => template(errorMessage, res, () => {
+        if (res.data.conversation.length !== 0) {
+            Array.prototype.push.apply($scope.chat.conversation, res.data.conversation);
+        }
+    })).catch((err) => catchError(errorMessage, err));
+}
+
+function init($scope) {
+    $scope.app = {
+        "page": "logIn",
+        "partialPage": "empty"
+    };
+
+    $scope.user = {
+        "mutable": {
+            "address": "",
+            "mobileNumber": "",
+            "homeNumber": "",
+        },
+        "const": {
+            "password": "",
+            "name": "",
+            "icon": ""
+        },
+        "friends": ""
+    };
+
+    $scope.chat = {
+        "receiverId": "",
+        "conversation": "",
+        "message": ""
+    };
+}
+
+
+app.controller("ChatterBox", ($scope, $http, $interval) => {
+
+    $scope.init = () => {
+        init($scope)
+        load($scope, $http);        
+        $scope.interval = $interval(() => {
+            if ($scope.chat.receiverId !== "") {
+                console.log("getting new message");
+                getNewMessage($scope, $http);
+            }
+        }, 5000);
+    }
+    $scope.tmp = {};
+    $scope.logOut = () => {
+        logOut($scope, $http);
+        $interval.cancel($scope.interval);
+    }
+    $scope.logIn = () => logIn($scope, $http)
+    $scope.getUserInfo = () => {
+        $scope.app.partialPage = "info";
+        $scope.chat.receiverId = "";
+        getUserInfo($scope, $http);
+    }
+    $scope.startChat = (userID) => {
+        if ($scope.chat.receiverId !== userID) {
+            $scope.chat.receiverId = userID;
+            getConversation($scope, $http);
+        }
+        $scope.app.partialPage = "chat";
+    }
+    $scope.save = () => saveUserInfo($scope, $http);
+    $scope.send = () => sendMessage($scope, $http);
+    $scope.deleteMessage = (index) => deleteMessage(index, $scope, $http);
+});

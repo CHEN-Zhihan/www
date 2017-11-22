@@ -32,6 +32,15 @@ app.use(function(req, response, next) {
   next();
 });
 
+app.use((req, res, next) => {
+  if (req.url === "/login" || req.session.userId) {
+    next()
+    return;
+  }
+  console.log("User not logged in");
+  res.send({"error": true});
+})
+
 app.use('/', chats);
 app.use('/users', users);
 
