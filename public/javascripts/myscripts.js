@@ -76,6 +76,7 @@ function logOut($scope, $http) {
     $http.get("/logout", {})
     .then((res) => template(errorMessage, res, () => {
             $scope.app.page = "logIn";
+            $scope.app.partialPage = "empty";
         })
     ).catch((err) => catchError(errorMessage, err));
 }
@@ -160,7 +161,7 @@ function deleteMessage(index, $scope, $http) {
     var errorMessage = "Delete message";
     $http.delete("/deletemessage/" + $scope.chat.conversation[index]._id, {})
     .then((res) => template(errorMessage, res, () => {
-        $scope.chat.conversation.splice(index, 1);        
+        $scope.chat.conversation.splice(index, 1);
     })
     ).catch((err) => catchError(errorMessage, err));
 }
@@ -173,6 +174,18 @@ function getNewMessage($scope, $http) {
             Array.prototype.push.apply($scope.chat.conversation, res.data.conversation);
         }
     })).catch((err) => catchError(errorMessage, err));
+}
+
+function getNewMessageNum($scope, $http) {
+    $scope.user.friends.forEach((x) => {
+        if (x._id !== $scope.chat.receiverId) {
+            var errorMessage = "Get new message number for " + x.name;
+            $http.get("/getnewmsgnum/" + x._id)
+            .then((res) => template(errorMessage, res, () => {
+                $scope.user.friends.unreadNo = res.unreadNo;
+            }))
+        }
+    })
 }
 
 function init($scope) {
@@ -207,12 +220,13 @@ app.controller("ChatterBox", ($scope, $http, $interval) => {
 
     $scope.init = () => {
         init($scope)
-        load($scope, $http);        
+        load($scope, $http);
         $scope.interval = $interval(() => {
             if ($scope.chat.receiverId !== "") {
                 console.log("getting new message");
                 getNewMessage($scope, $http);
             }
+            getNewMessageNum($scope, $http);            
         }, 5000);
     }
     $scope.tmp = {};

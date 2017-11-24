@@ -46,18 +46,12 @@ function getLatestMsgId(messageList, sender, receiver) {
     return messageList.find(query, options);
 }
 
-function getFriendsUnReadNo(userList, messageList, user, friends) {
-    return Promise.all([user, friends]).then((iterables) => {
-        var user = iterables[0];
-        var nameToLastMsgId = user.friends.reduce((result, x) => {
-            result[x.name] = x.lastMsgId;
-            return result;
-        }, {})
-        var friends = iterables[1];
+function getFriendsUnReadNo(userList, messageList, nameToLastMsgId, userId, friends) {
+    return friends.then((iterables) => {
+        var friends = iterables;
         var idCondition = friends.map((x) => {
             var result = {
-                "senderId": x._id.valueOf(),
-                "receiverId": user._id.valueOf()
+                "senderId": x._id.toString(),
             }
             if (nameToLastMsgId[x.name] !== '0') {
                 result["_id"] = {
@@ -66,12 +60,14 @@ function getFriendsUnReadNo(userList, messageList, user, friends) {
             }
             return result;
         });
-        var query = {
-            "$or": idCondition
-        };
+        var query = {"$or": idCondition, 
+                     "receiverId": userId.toString()
+                };
+        console.log("This is query");    
+        console.log(query);
         return messageList.find(query).then((doc) => {
-            var nameToUnreads = user.friends.reduce((result, x) => {
-                result[x.name] = 0;
+            var nameToUnreads = Object.keys(nameToLastMsgId).reduce((result, x) => {
+                result[x] = 0;
                 return result;
             }, {});
             var idToName = friends.reduce((result, x) => {
@@ -81,7 +77,7 @@ function getFriendsUnReadNo(userList, messageList, user, friends) {
             doc.forEach((x) => {
                 ++nameToUnreads[idToName[x.senderId]];
             });
-            return doc;
+            return nameToUnreads;
         });
     });
 }
@@ -134,7 +130,13 @@ function onload(userList, messageList, query, logIn) {
         };
         return userList.find(query, options);
     })
-    var unreadNos = getFriendsUnReadNo(userList, messageList, user, friends);
+    var unreadNos = user.then((doc) => {
+        var nameToLastMsgId = doc.friends.reduce((result, x) => {
+            result[x.name] = x.lastMsgId;
+            return result;
+        }, {})
+        return getFriendsUnReadNo(userList, messageList, nameToLastMsgId, doc._id, friends);
+    })
     return Promise.all([user, friends, unreadNos]).then((iterables) => {
         var user = iterables[0];
         var friends = iterables[1];
@@ -148,6 +150,7 @@ function onload(userList, messageList, query, logIn) {
             x["_id"] = nameToId[x.name];
             delete x.lastMsgId;
         });
+        console.log(user.friends);
         return user;
     })
 }
@@ -170,20 +173,15 @@ function getAllFriends(collection, nameToLastMsgId) {
     });
 }
 
-function getFriend(db, id) {
+function getFriend(db, id, fields) {
     var collection = db.get("userList");
     var query = {
         "_id": new mongo.ObjectID(id)
     }
-    var fields = {
-        "fields": {
-            "name": 1,
-            "icon": 1,
-            "status": 1,
-            "_id": 0
-        }
+    var options = {
+        "fields": fields
     };
-    return collection.findOne(query, fields)
+    return collection.findOne(query, options)
     .then((doc) => {
         if (DEBUG) {
             console.log("friend found successfully");
@@ -193,26 +191,29 @@ function getFriend(db, id) {
     });
 }
 
-function getFriendLastMsgId(userList, sender, receiver) {
+function getFriendLastMsgIdById(userList, sender, receiver) {
     var query = {
         "_id": new mongo.ObjectID(sender)
     };
     var friendName = userList.findOne(query, {"fields": {"name": 1}});
     return friendName.then((doc) => {
-        var query = {
-            "_id": new mongo.ObjectID(receiver),
-        };
-        var options = {
-            "friends": {
-                "$elemMatch": {
-                    "name": doc.name
-                }
-            }
-        };
-        return userList.findOne(query, options)
+        return getFriendLastMsgIdByName(userList, doc.name, receiver)
     })
 }
 
+function getFriendLastMsgIdByName(userList, senderName, receiver) {
+    var query = {
+        "_id": new mongo.ObjectID(receiver),
+    };
+    var options = {
+        "friends": {
+            "$elemMatch": {
+                "name": senderName
+            }
+        }
+    };
+    return userList.findOne(query, options);
+}
 
 
 function updateLastMsgId(userList, senderName, receiverId, senderLastMsgId)  {
@@ -397,7 +398,7 @@ function deletemessage(req, res) {
 
 function getnewmessages(req, res) {
     var messageList = req.db.get("messageList");
-    var nameLastMsgId =getFriendLastMsgId(req.db.get("userList"), req.params.friendid, req.session.userId);
+    var nameLastMsgId =getFriendLastMsgIdById(req.db.get("userList"), req.params.friendid, req.session.userId);
     var newMessage = nameLastMsgId
     .then((doc) => {
         if (DEBUG) {
@@ -452,7 +453,13 @@ function getconversation(req, res) {
         "senderId": req.params.friendid,
         "receiverId": req.session.userId
     }]};
-    var friend = getFriend(req.db, req.params.friendid);
+    var fields = {
+        "name": 1,
+        "icon": 1,
+        "status": 1,
+        "_id": 0
+    }
+    var friend = getFriend(req.db, req.params.friendid, fields);
     var conversation = messageList.find(query, {"sort": {"_id": 1}});
     Promise.all([friend, conversation]).then((friendConversation) => {
         var friend = friendConversation[0];
@@ -485,6 +492,33 @@ function getconversation(req, res) {
     }).catch((err) => catchError(err, res));
 }
 
+function getNewMessageNum(req, res) {
+    var userList = req.db.get("userList");
+    var messageList = req.db.get("messageList");
+    var friendNameLastMsgId = getFriend(req.db, req.params.friendid, {"name": 1})
+    .then((doc) => {
+        return [doc]
+    });
+    var nameToLastMsgId = friendNameLastMsgId.then((doc) => {
+        return getFriendLastMsgIdByName(userList, doc[0].name, req.session.userId).then((doc) => {
+            var result = {};
+            result[doc.friends[0]["name"]] = doc.friends[0]["lastMsgId"];
+            return result;
+        })
+    })
+    nameToLastMsgId.then((doc) => {
+        var unreadNos = dgetFriendsUnReadNo(userList, messageList, doc, req.session.userId, friendNameLastMsgId);
+        unreadNos.then((doc) => {
+            var unreadNo = Object.values(doc)[0];
+            res.send({
+                "unreadNo": unreadNo,
+                "error": false
+            });
+        })
+    }).catch((err) => catchError(err, res));
+
+}
+
 router.post("/login", login);
 router.get("/load", load);
 router.get("/logout", logout);
@@ -494,4 +528,5 @@ router.post("/postmessage/:friendid", postmessage);
 router.delete("/deletemessage/:msgid", deletemessage);
 router.get("/getnewmessages/:friendid", getnewmessages);
 router.get("/getconversation/:friendid", getconversation);
+router.get("/getnewmsgnum/:friendid", getNewMessageNum);
 module.exports = router;
