@@ -18,14 +18,16 @@
                     <div>{{user.const.name}}</div>
                     <img ng-src="{{user.const.icon}}">
                 </div>
-                <div ng-repeat="friend in user.friends" id="{{friend._id}}" ng-click="startChat(friend._id);">
-                    {{friend.name}}({{friend.unreadNo}})
+                <div ng-repeat="friend in user.friends track by $index" id="{{friend._id}}" ng-click="startChat($index);">
+                    {{friend.name}}{{friend.unreadNo !== 0 ?  (" (" + friend.unreadNo + ")") : ""}}
                 </div>
                 <button ng-click="logOut();">Log out</button>
                 <div ng-swith-when="empty">
                     
                 </div>
                 <div ng-switch-when="chat">
+                    <div>{{user.friends[chat.receiverIndex].name}}{{user.friends[chat.receiverIndex].status}}</div>
+                    <img ng-src="{{user.friends[chat.receiver.index].icon}}">
                     <div ng-repeat="m in chat.conversation track by $index" ng-dblclick="deleteMessage($index);">
                         {{m.message}}
                     </div>
@@ -34,8 +36,8 @@
                     </form>
                 </div>
                 <div ng-switch-when="info">
-                    <!-- <div>{{userPage.user.name}}</div>
-                    <img ng-src="{{userPage.user.icon}}"> -->
+                    <div>{{user.const.name}}</div>
+                    <img ng-src="{{user.const.icon}}">
                     Mobile number: <input type="text" ng-model="tmp.mobileNumber"><br>
                     Home number: <input type="text" ng-model="tmp.homeNumber"><br>
                     Address: <input type="text" ng-model="tmp.address"><br>

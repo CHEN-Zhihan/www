@@ -63,8 +63,6 @@ function getFriendsUnReadNo(userList, messageList, nameToLastMsgId, userId, frie
         var query = {"$or": idCondition, 
                      "receiverId": userId.toString()
                 };
-        console.log("This is query");    
-        console.log(query);
         return messageList.find(query).then((doc) => {
             var nameToUnreads = Object.keys(nameToLastMsgId).reduce((result, x) => {
                 result[x] = 0;
@@ -507,7 +505,7 @@ function getNewMessageNum(req, res) {
         })
     })
     nameToLastMsgId.then((doc) => {
-        var unreadNos = dgetFriendsUnReadNo(userList, messageList, doc, req.session.userId, friendNameLastMsgId);
+        var unreadNos = getFriendsUnReadNo(userList, messageList, doc, req.session.userId, friendNameLastMsgId);
         unreadNos.then((doc) => {
             var unreadNo = Object.values(doc)[0];
             res.send({
@@ -516,7 +514,6 @@ function getNewMessageNum(req, res) {
             });
         })
     }).catch((err) => catchError(err, res));
-
 }
 
 router.post("/login", login);

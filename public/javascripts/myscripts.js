@@ -13,6 +13,8 @@ function getDateTime() {
     };
 }
 
+
+
 function template(msg, res, callback) {
     if (res.data.error) {
         alert(msg + " Server Error");
@@ -75,6 +77,7 @@ function logOut($scope, $http) {
     var errorMessage = "Log out"
     $http.get("/logout", {})
     .then((res) => template(errorMessage, res, () => {
+            $scope.chat.receiverIndex = "";
             $scope.app.page = "logIn";
             $scope.app.partialPage = "empty";
         })
@@ -121,13 +124,16 @@ function saveUserInfo($scope, $http) {
 
 function getConversation($scope, $http) {
     var errorMessage = "Get Conversation";
-    $http.get("/getconversation/" + $scope.chat.receiverId)
+    var friend = $scope.user.friends[$scope.chat.receiverIndex];
+    $http.get("/getconversation/" + friend._id)
     .then((res) => template(errorMessage, res, () => {
         if (DEBUG) {
             console.log("get conversation successfully");
             console.log(res.data);
         }
+        friend.unreadNo = 0;
         $scope.chat.conversation = res.data.conversation;
+        Object.assign(friend, res.data.friend);
     })
     ).catch((err) => catchError(errorMessage, err));
 }
@@ -139,7 +145,8 @@ function sendMessage($scope, $http) {
         };
         Object.assign(data, getDateTime());
         var errorMessage = "Send message";
-        $http.post("/postmessage/" + $scope.chat.receiverId, data)
+        var userId = $scope.user.friends[$scope.chat.receiverIndex]._id;
+        $http.post("/postmessage/" + userId, data)
         .then((res) => template(errorMessage, res, () => {
             if (DEBUG) {
                 console.log("sent message successfully: ");
@@ -168,7 +175,8 @@ function deleteMessage(index, $scope, $http) {
 
 function getNewMessage($scope, $http) {
     var errorMessage = "Get new message";
-    $http.get("/getnewmessages/" + $scope.chat.receiverId)
+    var userId = $scope.user.friends[$scope.chat.receiverIndex]._id;
+    $http.get("/getnewmessages/" + userId)
     .then((res) => template(errorMessage, res, () => {
         if (res.data.conversation.length !== 0) {
             Array.prototype.push.apply($scope.chat.conversation, res.data.conversation);
@@ -177,12 +185,12 @@ function getNewMessage($scope, $http) {
 }
 
 function getNewMessageNum($scope, $http) {
-    $scope.user.friends.forEach((x) => {
-        if (x._id !== $scope.chat.receiverId) {
+    $scope.user.friends.forEach((x, index) => {
+        if (index !== $scope.chat.receiverIndex) {
             var errorMessage = "Get new message number for " + x.name;
             $http.get("/getnewmsgnum/" + x._id)
             .then((res) => template(errorMessage, res, () => {
-                $scope.user.friends.unreadNo = res.unreadNo;
+                x.unreadNo = res.data.unreadNo;
             }))
         }
     })
@@ -209,7 +217,7 @@ function init($scope) {
     };
 
     $scope.chat = {
-        "receiverId": "",
+        "receiverIndex": "",
         "conversation": "",
         "message": ""
     };
@@ -218,31 +226,41 @@ function init($scope) {
 
 app.controller("ChatterBox", ($scope, $http, $interval) => {
 
-    $scope.init = () => {
-        init($scope)
-        load($scope, $http);
+
+    function setInterval() {
         $scope.interval = $interval(() => {
-            if ($scope.chat.receiverId !== "") {
+            if ($scope.chat.receiverIndex !== "") {
                 console.log("getting new message");
                 getNewMessage($scope, $http);
             }
-            getNewMessageNum($scope, $http);            
+            if ($scope.app.page === "main") {
+                console.log("getting new message number");
+                getNewMessageNum($scope, $http);
+            }
         }, 5000);
+    }
+    $scope.init = () => {
+        init($scope)
+        load($scope, $http);
+        setInterval();
     }
     $scope.tmp = {};
     $scope.logOut = () => {
         logOut($scope, $http);
         $interval.cancel($scope.interval);
     }
-    $scope.logIn = () => logIn($scope, $http)
+    $scope.logIn = () => {
+        logIn($scope, $http)
+        setInterval();
+    }
     $scope.getUserInfo = () => {
         $scope.app.partialPage = "info";
-        $scope.chat.receiverId = "";
+        $scope.chat.receiverIndex = "";
         getUserInfo($scope, $http);
     }
-    $scope.startChat = (userID) => {
-        if ($scope.chat.receiverId !== userID) {
-            $scope.chat.receiverId = userID;
+    $scope.startChat = (index) => {
+        if ($scope.chat.receiverIndex !== index) {
+            $scope.chat.receiverIndex = index;
             getConversation($scope, $http);
         }
         $scope.app.partialPage = "chat";
