@@ -3,7 +3,7 @@
     <head>
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
         <script type="text/javascript" src="javascripts/myscripts.js"></script>
-        <link rel="stylesheet" type="test/css" href="stylesheets/style.css">
+        <link rel="stylesheet" type="text/css" href="stylesheets/style.css">
     </head>
     <body>
         <h1>ChatterBox</h1>
@@ -14,20 +14,24 @@
                 <button ng-click="logIn();">Log in</button>
             </div>
             <div ng-switch-when="main" ng-switch on="app.partialPage">
-                <div ng-click="getUserInfo();">
-                    <div>{{user.const.name}}</div>
-                    <img ng-src="{{user.const.icon}}">
+                <div ng-click="getUserInfo();" class="header">
+                    <img class="icon" ng-src="{{user.const.icon}}">                        
+                    <div class="userName">{{user.const.name}}</div>
+                    <button ng-click="logOut();">Log out</button>            
                 </div>
-                <div ng-repeat="friend in user.friends track by $index" id="{{friend._id}}" ng-click="startChat($index);">
-                    {{friend.name}}{{friend.unreadNo !== 0 ?  (" (" + friend.unreadNo + ")") : ""}}
+                <div id="friendList">
+                    <div ng-repeat="friend in user.friends track by $index" id="{{friend._id}}" ng-click="startChat($index);">
+                            <div class="userName">
+                                {{friend.name}}{{friend.unreadNo !== 0 ?  (" (" + friend.unreadNo + ")") : ""}}
+                            </div>
+                    </div>
                 </div>
-                <button ng-click="logOut();">Log out</button>
                 <div ng-swith-when="empty">
                     
                 </div>
                 <div ng-switch-when="chat">
                     <div>{{user.friends[chat.receiverIndex].name}}{{user.friends[chat.receiverIndex].status}}</div>
-                    <img ng-src="{{user.friends[chat.receiver.index].icon}}">
+                    <img class="icon" ng-src={{user.friends[chat.receiverIndex].icon}}>
                     <div ng-repeat="m in chat.conversation track by $index" ng-dblclick="deleteMessage($index);">
                         {{m.message}}
                     </div>
@@ -36,12 +40,14 @@
                     </form>
                 </div>
                 <div ng-switch-when="info">
-                    <div>{{user.const.name}}</div>
-                    <img ng-src="{{user.const.icon}}">
-                    Mobile number: <input type="text" ng-model="tmp.mobileNumber"><br>
-                    Home number: <input type="text" ng-model="tmp.homeNumber"><br>
-                    Address: <input type="text" ng-model="tmp.address"><br>
-                    <button ng-click="save();">Save</button>
+                    <img class="icon" ng-src={{user.const.icon}}>
+                    <div class="userName">{{user.const.name}}</div>
+                    <div class="info">
+                            Mobile number: <input type="text" ng-model="tmp.mobileNumber"><br>
+                            Home number: <input type="text" ng-model="tmp.homeNumber"><br>
+                            Address: <input type="text" ng-model="tmp.address"><br>
+                            <button ng-click="save();">Save</button>
+                    </div>
                 </div>
             </div>
         </div>

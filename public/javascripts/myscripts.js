@@ -134,6 +134,7 @@ function getConversation($scope, $http) {
         friend.unreadNo = 0;
         $scope.chat.conversation = res.data.conversation;
         Object.assign(friend, res.data.friend);
+        console.log(friend);
     })
     ).catch((err) => catchError(errorMessage, err));
 }
